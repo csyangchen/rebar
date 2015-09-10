@@ -36,6 +36,7 @@
          'get-deps'/2,
          'update-deps'/2,
          'delete-deps'/2,
+        'run-deps'/2,
          'list-deps'/2]).
 
 %% for internal use only
@@ -219,6 +220,19 @@ do_check_deps(Config) ->
             lists:prefix(DepsDir, D#dep.dir)],
     {ok, Config1}.
 
+
+'run-deps'(Config, _) ->
+    {true, Dir} = get_deps_dir(Config),
+    {ok, L0} = file:list_dir(Dir),
+    L = [filename:join(Dir, X) || X<- L0],
+    EbinDir= [filename:join(X, "ebin") || X <- L, rebar_app_utils:is_app_dir(X) =/= false],
+    Pz = string:join(EbinDir, " "),
+    Args = string:join(rebar_config:get_local(Config, 'run-deps', []), " "),
+    Cmd = io_lib:format("werl -pz ebin -pz ~s ~s", [Pz, Args]),
+    ?CONSOLE(Cmd, []),
+    erlang:spawn(fun() -> os:cmd(Cmd) end),
+    ok.
+
 'list-deps'(Config, _) ->
     Deps = rebar_config:get_local(Config, deps, []),
     case find_deps(Config, find, Deps) of
@@ -228,6 +242,7 @@ do_check_deps(Config) ->
         {_, MissingDeps} ->
             ?ABORT("Missing dependencies: ~p\n", [MissingDeps])
     end.
+
 
 %% ===================================================================
 %% Internal functions
@@ -243,6 +258,12 @@ info(help, 'update-deps') ->
     info_help("Update fetched dependencies");
 info(help, 'delete-deps') ->
     info_help("Delete fetched dependencies");
+info(help, 'run-deps') ->
+    ?CONSOLE(
+        "Start a werl shell with project and deps preloaded similar to~n"
+        "'erl -pz ebin -pz deps/*/ebin' <other 'run-deps' args in rebar.config>.~n",
+        []
+    );
 info(help, 'list-deps') ->
     info_help("List dependencies").
 
