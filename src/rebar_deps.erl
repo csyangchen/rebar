@@ -223,7 +223,12 @@ do_check_deps(Config) ->
 
 'run-deps'(Config, _) ->
     {true, Dir} = get_deps_dir(Config),
-    {ok, L0} = file:list_dir(Dir),
+    L0 = case file:list_dir(Dir) of
+             {ok, L0_} ->
+                 L0_;
+             {error, _} ->
+                 []
+         end,
     L = [filename:join(Dir, X) || X<- L0],
     EbinDir= [filename:join(X, "ebin") || X <- L, rebar_app_utils:is_app_dir(X) =/= false],
     Pz = string:join(EbinDir, " "),
